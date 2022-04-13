@@ -212,7 +212,7 @@ public class MediaProjectionDemo extends Activity {
         @Override
         public void onItemSelected(AdapterView<?> parent, View v, int pos, long id) {
             Resolution r = (Resolution) parent.getItemAtPosition(pos);
-            ViewGroup.LayoutParams lp = mSurfaceView.getLayoutParams();
+            ViewGroup.LayoutParams lp = mScreenShotImageView.getLayoutParams();
             if (getResources().getConfiguration().orientation
                     == Configuration.ORIENTATION_LANDSCAPE) {
                 mDisplayHeight = r.y;

@@ -33,6 +33,7 @@ import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.os.Bundle;
 import android.support.v7.widget.ThemedSpinnerAdapter;
+import android.util.Base64;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Surface;
@@ -42,6 +43,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -53,6 +55,14 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.WebSocket;
+import okhttp3.WebSocketListener;
+import okio.ByteString;
 
 public class MediaProjectionDemo extends Activity {
     private static final String TAG = "MediaProjectionDemo";
@@ -83,11 +93,15 @@ public class MediaProjectionDemo extends Activity {
     byte[] displayData = null;
     private Context context;
     TextView mMgsTextView;
+    private TextView output;
+    private Button mSendToServer;
+    private OkHttpClient client;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.media_projection);
-
+        client = new OkHttpClient();
         DisplayMetrics metrics = new DisplayMetrics();
         getWindowManager().getDefaultDisplay().getMetrics(metrics);
         mScreenDensity = metrics.densityDpi;
@@ -96,6 +110,8 @@ public class MediaProjectionDemo extends Activity {
         mMgsTextView = (TextView) findViewById(R.id.tv_mgs);
         mSurface = mSurfaceView.getHolder().getSurface();
         mScreenShotImageView = (ImageView) findViewById(R.id.im_screen_shot);
+        mSendToServer = (Button) findViewById(R.id.but_send);
+        output = (TextView) findViewById(R.id.tv_output);
         mProjectionManager =
             (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 
@@ -108,6 +124,21 @@ public class MediaProjectionDemo extends Activity {
 
         mToggle = (ToggleButton) findViewById(R.id.screen_sharing_toggle);
         mToggle.setSaveEnabled(false);
+
+        mSendToServer.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                start();
+            }
+        });
+    }
+
+    private void start() {
+        Request request = new Request.Builder().url("ws://192.168.8.117:9098/websocket").build();
+        //  Request request = new Request.Builder().url("http://middlewarepoc-env.eba-k3yvmgxs.us-east-1.elasticbeanstalk.com/").build();
+        EchoWebSocketListener listener = new EchoWebSocketListener();
+        WebSocket ws = client.newWebSocket(request, listener);
+        client.dispatcher().executorService().shutdown();
     }
 
     @Override
@@ -376,4 +407,42 @@ public class MediaProjectionDemo extends Activity {
         String encodedImage = android.util.Base64.encodeToString(imageBytes, Base64.DEFAULT);
         return encodedImage;
     }*/
+
+    public class EchoWebSocketListener extends WebSocketListener {
+        private static final int NORMAL_CLOSURE_STATUS = 1000;
+        @Override
+        public void onOpen(WebSocket webSocket, Response response) {
+            //webSocket.send("Hello, it's SSaurel !");
+            String imageString = Base64.encodeToString(displayData, Base64.DEFAULT);
+            webSocket.send(String.valueOf(imageString));
+            webSocket.close(NORMAL_CLOSURE_STATUS, "Goodbye !");
+        }
+        @Override
+        public void onMessage(WebSocket webSocket, String text) {
+            output("Receiving : From Admin" + text);
+        }
+        @Override
+        public void onMessage(WebSocket webSocket, ByteString bytes) {
+            output("Receiving bytes : from Admin " + bytes.hex());
+        }
+        @Override
+        public void onClosing(WebSocket webSocket, int code, String reason) {
+            webSocket.close(NORMAL_CLOSURE_STATUS, null);
+            output("Closing : " + code + " / " + reason);
+        }
+        @Override
+        public void onFailure(WebSocket webSocket, Throwable t, Response response) {
+            output("Error : " + t.getMessage());
+        }
+    }
+
+    private void output(final String txt) {
+        Objects.requireNonNull(MediaProjectionDemo.this).runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                output.setText(output.getText().toString() + "\n\n" + txt);
+            }
+        });
+    }
+
 }

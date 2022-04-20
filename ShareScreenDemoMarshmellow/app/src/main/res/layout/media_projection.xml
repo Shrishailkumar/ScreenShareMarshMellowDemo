@@ -20,6 +20,20 @@
         android:layout_centerHorizontal="true"
         android:layout_alignParentTop="true"
         android:visibility="gone"/>
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/im_screen_shot">
+        <TextView
+            android:id="@+id/tv_output"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textSize="25sp"
+
+            android:textColor="@color/black"
+            android:layout_marginTop="30dp"/>
+    </ScrollView>
     <TextView
         android:id="@+id/tv_mgs"
         android:layout_width="match_parent"
@@ -30,15 +44,7 @@
         android:scrollbars="vertical"
         android:layout_centerHorizontal="true"
         android:layout_alignParentTop="true"/>
-    <TextView
-        android:id="@+id/tv_output"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:textSize="25sp"
-        android:layout_below="@+id/im_screen_shot"
-        android:textColor="@color/black"
-        android:layout_marginTop="30dp"/>
+
     <Button
         android:id="@+id/but_send"
         android:layout_width="wrap_content"

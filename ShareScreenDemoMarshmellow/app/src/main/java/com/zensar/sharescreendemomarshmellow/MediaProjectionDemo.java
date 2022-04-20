@@ -89,7 +89,7 @@ public class MediaProjectionDemo extends Activity {
 
     public ImageView mScreenShotImageView;
     ImageReader imageReader;
-    int counter = 0;
+    int counter = 1;
     byte[] displayData = null;
     private Context context;
     TextView mMgsTextView;
@@ -124,7 +124,7 @@ public class MediaProjectionDemo extends Activity {
 
         mToggle = (ToggleButton) findViewById(R.id.screen_sharing_toggle);
         mToggle.setSaveEnabled(false);
-
+        mSendToServer.setVisibility(View.GONE);
         mSendToServer.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -134,11 +134,13 @@ public class MediaProjectionDemo extends Activity {
     }
 
     private void start() {
-        Request request = new Request.Builder().url("ws://192.168.8.117:9098/websocket").build();
+        out.println(" !!!!!!!!!!! in the Start !!!!!!!!!!!!!");
+       OkHttpClient lClient = new OkHttpClient();
+        Request request = new Request.Builder().url("ws://192.168.43.103:9111/websocket").build();
         //  Request request = new Request.Builder().url("http://middlewarepoc-env.eba-k3yvmgxs.us-east-1.elasticbeanstalk.com/").build();
         EchoWebSocketListener listener = new EchoWebSocketListener();
-        WebSocket ws = client.newWebSocket(request, listener);
-        client.dispatcher().executorService().shutdown();
+        WebSocket ws = lClient.newWebSocket(request, listener);
+       // client.dispatcher().executorService().shutdown();
     }
 
     @Override
@@ -198,7 +200,7 @@ public class MediaProjectionDemo extends Activity {
         if (imageReader == null) {
             return;
         }
-        counter =0;
+        counter =1;
         imageReader.close();//release();
         imageReader = null;
 
@@ -211,6 +213,11 @@ public class MediaProjectionDemo extends Activity {
             mVirtualDisplay.release();
             mVirtualDisplay = null;
         }
+
+        if (mMediaProjection != null) {
+            mMediaProjection.stop();
+            mMediaProjection = null;
+        }
     }
 
     private VirtualDisplay createVirtualDisplay() {
@@ -218,6 +225,8 @@ public class MediaProjectionDemo extends Activity {
                 mSurfaceView.getWidth() + "x" + mSurfaceView.getHeight() +
                 " (" + mScreenDensity + ")");
         // for imager reader callback
+        if (imageReader!=null)
+            imageReader.close();
         imageReader = ImageReader.newInstance(mScreenShotImageView.getWidth(), mScreenShotImageView.getHeight(), PixelFormat.RGBA_8888, 60);
 
        VirtualDisplay virtualDisplay = mMediaProjection.createVirtualDisplay("ScreenCapture",
@@ -265,7 +274,7 @@ public class MediaProjectionDemo extends Activity {
         @Override
         public void onStop() {
             mMediaProjection = null;
-            stopScreenSharing();
+         //   stopScreenSharing();
         }
     }
 
@@ -314,9 +323,14 @@ public class MediaProjectionDemo extends Activity {
             //reset the counter if imagereader reads 60 frames/images and call
             // setUpVirtualDisplay to continue fetching/rendering the images form
             //ImageReader
-            if (!(counter < 60)) {
-                createVirtualDisplay();
-                counter = 0;
+            if (!(counter < 59)) {
+                //mMediaProjection.registerCallback(new MediaProjectionCallback(), null);
+               // mVirtualDisplay = createVirtualDisplay();
+                imageReader.close();
+                stopScreenSharing();
+                shareScreen();
+                counter = 1;
+
             }
             Image image = null;
             Bitmap bitmap = null;
@@ -325,6 +339,7 @@ public class MediaProjectionDemo extends Activity {
 
             try {
                 image = reader.acquireNextImage();
+
                 if (image != null) {
                     Image.Plane[] planes = image.getPlanes();
                     ByteBuffer buffer = planes[0].getBuffer();
@@ -335,7 +350,7 @@ public class MediaProjectionDemo extends Activity {
                     // create bitmap
                     bitmap = Bitmap.createBitmap(mScreenShotImageView.getWidth() + rowPadding / pixelStride,
                             mScreenShotImageView.getHeight(), Bitmap.Config.ARGB_8888);
-                    out.println("mSurfaceView.getht >> " + mSurfaceView.getHeight() + "mSurfaceView.getWidth() >> " + mSurfaceView.getWidth() + " >> rpdng >>" + rowPadding + " >> pixlStrid >> " + pixelStride);
+                    System.out.println("mSurfaceView.getht >> " + mSurfaceView.getHeight() + "mSurfaceView.getWidth() >> " + mSurfaceView.getWidth() + " >> rpdng >>" + rowPadding + " >> pixlStrid >> " + pixelStride);
                     bitmap.copyPixelsFromBuffer(buffer);
                     stream = new ByteArrayOutputStream();
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream);
@@ -350,7 +365,7 @@ public class MediaProjectionDemo extends Activity {
                             }
                         });
 
-                        out.println("counter >>>>>>>>>>>>> " + counter);
+                        System.out.println("counter >>>>>>>>>>>>> " + counter);
                         mScreenShotImageView.setImageBitmap(bitmap);
                         mScreenShotImageView.invalidate();
                     }
@@ -358,10 +373,13 @@ public class MediaProjectionDemo extends Activity {
 
 
                     System.out.println("byte Array data is:" +displayData);
+                    //calling the dynamic update of image to backend
+                    start();
 
                 }
 
             } catch (Exception e) {
+                System.out.println("Exception >>>>>>>>>>>>>>.. "+e);
                 e.printStackTrace();
             }
            /* if (displayData !=null)
@@ -413,9 +431,11 @@ public class MediaProjectionDemo extends Activity {
         @Override
         public void onOpen(WebSocket webSocket, Response response) {
             //webSocket.send("Hello, it's SSaurel !");
+            out.println(" !!!!!!!!!!! in onOpen mthd!!!!!!!!!!!!!");
             String imageString = Base64.encodeToString(displayData, Base64.DEFAULT);
+            System.out.println("!!!!!!!!!!!!! sending mgs !!!!!!!!!!!!!!!!!.. "+counter);
             webSocket.send(String.valueOf(imageString));
-            webSocket.close(NORMAL_CLOSURE_STATUS, "Goodbye !");
+            //webSocket.close(NORMAL_CLOSURE_STATUS, "Goodbye !");//TODO close this on certain command from bckend
         }
         @Override
         public void onMessage(WebSocket webSocket, String text) {
@@ -427,12 +447,12 @@ public class MediaProjectionDemo extends Activity {
         }
         @Override
         public void onClosing(WebSocket webSocket, int code, String reason) {
-            webSocket.close(NORMAL_CLOSURE_STATUS, null);
-            output("Closing : " + code + " / " + reason);
+         //   webSocket.close(NORMAL_CLOSURE_STATUS, null);
+  //          output("Closing : " + code + " / " + reason);
         }
         @Override
         public void onFailure(WebSocket webSocket, Throwable t, Response response) {
-            output("Error : " + t.getMessage());
+  //          output("Error : " + t.getMessage());
         }
     }
 

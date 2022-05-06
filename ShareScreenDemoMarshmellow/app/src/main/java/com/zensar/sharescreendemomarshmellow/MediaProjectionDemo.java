@@ -328,8 +328,9 @@ public class MediaProjectionDemo extends Activity {
                // mVirtualDisplay = createVirtualDisplay();
                 imageReader.close();
                 stopScreenSharing();
-                shareScreen();
                 counter = 1;
+                shareScreen();
+
 
             }
             Image image = null;
